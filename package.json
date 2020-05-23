@@ -1,0 +1,38 @@
+{
+  "name": "stgen",
+  "version": "0.1.0",
+  "description": "Generates Typscript bindings to your SmartThings devices for easy programming",
+  "main": "build/lib/index.js",
+  "types": "build/lib/index.d.ts",
+  "scripts": {
+    "test": "mocha",
+    "tsc": "tsc",
+    "build": "tsc",
+    "watch": "tsc -w",
+    "clean": "rm -rf build"
+  },
+  "bin": {
+    "stgen": "./build/codegen/index.js"
+  },
+  "mocha": {
+    "spec": "./build/test/**/*.js"
+  },
+  "author": "David Poll (david@depoll.com)",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/json-stable-stringify": "^1.0.32",
+    "@types/mocha": "^7.0.2",
+    "@types/prettier": "^2.0.1",
+    "@types/yargs": "^15.0.5",
+    "json-stable-stringify": "^1.0.1",
+    "mocha": "^7.2.0",
+    "prettier": "^2.0.5",
+    "transliteration": "^2.1.11",
+    "typescript": "^3.9.3",
+    "yargs": "^15.3.1"
+  },
+  "dependencies": {
+    "@smartthings/core-sdk": "^0.2.11",
+    "@smartthings/smartapp": "^2.1.0"
+  }
+}

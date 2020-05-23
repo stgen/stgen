@@ -1,3 +1,7 @@
+accessToken
+build
+gen
+
 # Logs
 logs
 *.log
