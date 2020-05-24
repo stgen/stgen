@@ -9,7 +9,7 @@
     "tsc": "tsc",
     "build": "tsc",
     "watch": "tsc -w",
-    "clean": "rm -rf build"
+    "clean": "rm -rf build",
   },
   "bin": {
     "stgen": "./build/codegen/index.js"
