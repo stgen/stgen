@@ -31,6 +31,14 @@
 		},
 		{
 			"type": "npm",
+			"script": "generate",
+			"problemMatcher": [],
+			"group": "build",
+			"label": "npm: generate",
+			"detail": "Generates SmartThings bindings"
+		},
+		{
+			"type": "npm",
 			"script": "test",
 			"problemMatcher": [],
 			"group": "test",

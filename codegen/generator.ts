@@ -43,14 +43,14 @@ export async function getAllSmartThingsData(client: SmartThingsClient): Promise<
 export function generate(data: SmartThingsData): { fileName: string, source: string }[] {
     let capabilities = format(`
     import * as stgen from "stgen";
-    import {SmartThingsClient} from "@smartthings/core-sdk";
+    import * as st from "@smartthings/core-sdk";
 
     ${generateCapabilityDefinitions(data.capabilities)}
     `);
     let devices = format(`
     import * as stgen from "stgen";
     import * as capabilities from "./capabilities";
-    import {SmartThingsClient} from "@smartthings/core-sdk";
+    import * as st from "@smartthings/core-sdk";
 
     ${generateDevices(data.devices)}
     `);
@@ -103,12 +103,39 @@ function generateCapabilityDefinition(capability: Capability): string {
     export class Capability<TComponent extends stgen.Component<any, TDevice>, TDevice extends stgen.Device<any>> extends stgen.Capability<Status, TComponent, TDevice> {
         constructor(component: TComponent) {
             super(component, ${stringify(capability)} as any);
-
-            // TODO: add commands
         }
+        ${generateCommands(capability)}
     };
     `
     return result;
+}
+
+function generateCommands(capability: Capability): string {
+    if (!capability.commands) {
+        return '';
+    }
+    let commands = capability.commands!;
+    return Object.keys(commands).sort().map(cmdKey => {
+        let cmd = commands[cmdKey];
+        return `
+        /**
+         * Executes "${cmd.name}" for this capability
+         */
+        async ${identifier(cmd.name ?? cmdKey, true)}(${(cmd.arguments ?? [])
+                .map(arg => `${identifier(arg.name, true)}${arg.optional ? '?' : ''}: \
+                             ${generateInnerTypes(arg.schema, false)}`)
+                .join(', ')}): Promise<st.Status> {
+            return this.client.devices.executeCommand(this.device.id, {
+                component: this.component.id,
+                capability: this.id,
+                command: "${cmd.name ?? cmdKey}",
+                arguments: [
+                    ${(cmd.arguments ?? []).map(arg => `${identifier(arg.name, true)}${arg.optional ? '!' : ''}`).join(', ')}
+                ]
+            });
+        }
+        `;
+    }).join('\n');
 }
 
 function generateAttributes(capability: Capability): string {
@@ -170,7 +197,12 @@ function generateInnerTypes(property: Types, required: boolean = false): string 
                 }
                 let props = [];
                 for (const inner of Object.keys(property.properties).sort()) {
-                    props.push(`"${inner}"${optional(inner)}: ${generateInnerTypes(property.properties[inner])}`);
+                    let { type, enum: _enum, items, properties, required, ...prunedInner } = property.properties[inner] as Types;
+                    props.push(`
+                    /**
+                     * ${stringify(prunedInner)}
+                     */
+                    "${inner}"${optional(inner)}: ${generateInnerTypes(property.properties[inner])}`);
                 }
                 return `{${props.join(',')}}`
             } else {
@@ -198,7 +230,7 @@ function generateDevices(devices: Device[]): string {
          * 
          * @param client a SmartThingsClient.  If none is provided, uses the default set using {@link module:stgen.setDefaultClient}
          */
-        export function ${lowerName}(client?: SmartThingsClient): ${name}.Device {
+        export function ${lowerName}(client?: st.SmartThingsClient): ${name}.Device {
             return new ${name}.Device(client ?? stgen.getDefaultClient());
         }
         export namespace ${name} {
@@ -208,7 +240,7 @@ function generateDevices(devices: Device[]): string {
                 }
             }
             export class Device extends stgen.Device<Status> {
-                constructor(client: SmartThingsClient) {
+                constructor(client: st.SmartThingsClient) {
                     super(client, ${stringify(d)} as any);
                 }
 
