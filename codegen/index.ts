@@ -36,7 +36,7 @@ let argv = yargs
     })
     .argv;
 
-let token = argv.token || fs.readFileSync(argv.tokenFile!, 'utf-8');
+let token = argv.token || fs.readFileSync(argv.tokenFile!, 'utf-8').trim();
 let client = new SmartThingsClient(
     new BearerTokenAuthenticator(token));
 
