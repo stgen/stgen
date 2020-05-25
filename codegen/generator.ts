@@ -1,4 +1,4 @@
-import { Capability, CapabilityAttributeSchema, CapabilityJSONSchema, CapabilityReference, Component, Device, SmartThingsClient } from "@smartthings/core-sdk";
+import { Capability, CapabilityAttributeSchema, CapabilityJSONSchema, CapabilityReference, Component, Device, SmartThingsClient, CustomCapabilityStatus, CapabilitySchemaPropertyName } from "@smartthings/core-sdk";
 import { format, identifier, retry, throttle, sortByIdentifier } from "./utils";
 import fs from 'fs';
 import stringify from 'json-stable-stringify';
@@ -75,12 +75,31 @@ function generateCapabilityDefinitions(capabilities: CapabilityMap): string {
     return result;
 }
 
+function capabilityNotices(capability: Capability): string {
+    switch (capability.status) {
+        case CustomCapabilityStatus.DEAD:
+        case CustomCapabilityStatus.DEPRECATED:
+            return `@deprecated Capability status is ${capability.status}`;
+        case CustomCapabilityStatus.PROPOSED:
+            return `@experimental Capability status is ${capability.status}`;
+        default:
+            return "";
+    }
+}
 
 function generateCapabilityDefinition(capability: Capability): string {
     var result = `
+    /**
+     * Status type for ${capability.name} v${capability.version}
+     * ${capabilityNotices(capability)}
+     */
     export interface Status {
         ${generateAttributes(capability)}
     }
+    /**
+     * Rich client for ${capability.name} v${capability.version}
+     * ${capabilityNotices(capability)}
+     */
     export class Capability<TComponent extends stgen.Component<any, TDevice>, TDevice extends stgen.Device<any>> extends stgen.Capability<Status, TComponent, TDevice> {
         constructor(component: TComponent) {
             super(component, ${stringify(capability)} as any);
@@ -105,13 +124,16 @@ function generateAttributes(capability: Capability): string {
 }
 
 function generateSchemaProperties(schema: CapabilityAttributeSchema): string {
+    function optionalModifier(key: CapabilitySchemaPropertyName) {
+        return schema.required?.includes(key) ? "" : "?";
+    }
     let properties = [];
-    properties.push(`value: ${generateInnerTypes(schema.properties.value)}`);
+    properties.push(`value${optionalModifier(CapabilitySchemaPropertyName.VALUE)}: ${generateInnerTypes(schema.properties.value)}`);
     if (schema.properties.unit) {
-        properties.push(`unit?: ${generateInnerTypes(schema.properties.unit)}`);
+        properties.push(`unit${optionalModifier(CapabilitySchemaPropertyName.UNIT)}: ${generateInnerTypes(schema.properties.unit)}`);
     }
     if (schema.properties.data) {
-        properties.push(`data: ${generateInnerTypes(schema.properties.data)}`);
+        properties.push(`data${optionalModifier(CapabilitySchemaPropertyName.DATA)}: ${generateInnerTypes(schema.properties.data, true)}`);
     }
     return properties.join(',');
 }
@@ -122,10 +144,11 @@ interface Types {
     items?: Types,
     properties?: {
         [name: string]: CapabilityJSONSchema;
-    }
+    },
+    required?: string[]
 }
 
-function generateInnerTypes(property: Types): string {
+function generateInnerTypes(property: Types, required: boolean = false): string {
     switch (property.type) {
         case "string":
             if (property.enum) {
@@ -142,9 +165,12 @@ function generateInnerTypes(property: Types): string {
             return "any[]";
         case "object":
             if (property.properties) {
+                function optional(key: string) {
+                    return required && property.required?.includes(key) ? "" : "?";
+                }
                 let props = [];
                 for (const inner of Object.keys(property.properties).sort()) {
-                    props.push(`"${inner}": ${generateInnerTypes(property.properties[inner])}`);
+                    props.push(`"${inner}"${optional(inner)}: ${generateInnerTypes(property.properties[inner])}`);
                 }
                 return `{${props.join(',')}}`
             } else {
@@ -177,7 +203,9 @@ function generateDevices(devices: Device[]): string {
         }
         export namespace ${name} {
             export interface Status {
-                ${d.components?.sort(sortByIdentifier).map(c => `"${c.id}": Components.${identifier(c.id!)}.Status`).join(',\n')}
+                components: {
+                    ${d.components?.sort(sortByIdentifier).map(c => `"${c.id}": Components.${identifier(c.id!)}.Status`).join(',\n')}
+                }
             }
             export class Device extends stgen.Device<Status> {
                 constructor(client: SmartThingsClient) {
