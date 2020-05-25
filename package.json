@@ -7,10 +7,11 @@
   "scripts": {
     "test": "mocha",
     "tsc": "tsc",
-    "build": "tsc",
-    "watch": "tsc -w",
-    "clean": "rm -rf build",
-    "pretest": "node ./build/codegen/index.js -i accessToken -o gen && tsc"
+    "build": "tsc -p tsconfig.build.json",
+    "buildtest": "tsc",
+    "watch": "tsc",
+    "clean": "rm -rf build && rm -rf gen",
+    "pretest": "node ./build/codegen/index.js -i accessToken -o gen && npm run buildtest"
   },
   "bin": {
     "stgen": "./build/codegen/index.js"

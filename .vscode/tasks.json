@@ -28,6 +28,14 @@
 			"group": "build",
 			"label": "npm: clean",
 			"detail": "rm -rf build"
+		},
+		{
+			"type": "npm",
+			"script": "test",
+			"problemMatcher": [],
+			"group": "test",
+			"label": "npm: test",
+			"detail": "Runs mocha tests"
 		}
 	]
 }

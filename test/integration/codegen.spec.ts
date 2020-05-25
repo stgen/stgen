@@ -32,8 +32,6 @@ describe('Codegen', function () {
     exec('npm run tsc', (error, stdout, sterr) => {
       code.forEach(f =>
         assert(fs.existsSync(`build/test-gen/${f.fileName.replace('.ts', '.js')}`)));
-      code.forEach(f =>
-        console.log(fs.readFileSync(`build/test-gen/${f.fileName.replace('.ts', '.d.ts')}`, 'utf-8')));
 
       done(error);
     });
