@@ -25,7 +25,7 @@ jobs:
       with:
         node-version: ${{ matrix.node-version }}
     - run: npm ci
-    - env:
+    - with:
         ST_TEST_ACCESS_TOKEN: ${{ secrets.ST_TEST_ACCESS_TOKEN }}
       run: echo "$ST_TEST_ACCESS_TOKEN" > accessToken
     - run: npm run build --if-present
