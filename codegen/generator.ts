@@ -1,5 +1,5 @@
 import { Capability, CapabilityAttributeSchema, CapabilityJSONSchema, CapabilityReference, Component, Device, SmartThingsClient, CustomCapabilityStatus, CapabilitySchemaPropertyName } from "@smartthings/core-sdk";
-import { format, identifier, retry, throttle, sortByIdentifier } from "./utils";
+import { format, identifier, retry, throttle, sortByIdentifier, flat } from "./utils";
 import fs from 'fs';
 import stringify from 'json-stable-stringify';
 
@@ -22,8 +22,8 @@ export interface SmartThingsData {
 
 export async function getAllSmartThingsData(client: SmartThingsClient): Promise<SmartThingsData> {
     let devices = await retry(() => throttle(() => client.devices.list()));
-    let allCapabilityReferences = devices.map(
-        d => d.components?.map(c => c.capabilities) ?? []).flat(2);
+    let allCapabilityReferences = flat(devices.map(
+        d => flat(d.components?.map(c => c.capabilities) ?? [])));
     let capabilities: CapabilityMap = {};
     await Promise.all(allCapabilityReferences.map(cap => retry(async () => {
         if (capabilities[cap.id]?.[cap.version!]) {

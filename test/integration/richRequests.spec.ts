@@ -7,6 +7,7 @@ import { SmartThingsClient, BearerTokenAuthenticator } from '@smartthings/core-s
 import { virtualDimmer } from '../../gen/devices';
 
 describe('Rich Requests', function () {
+    this.timeout(5000);
     let client: SmartThingsClient;
     before(function () {
         client = new SmartThingsClient(
@@ -16,11 +17,11 @@ describe('Rich Requests', function () {
         let status = await virtualDimmer(client).main.switch.getStatus();
         assert(status.switch.value);
     });
-    it('Can get component status', async function() {
+    it('Can get component status', async function () {
         let status = await virtualDimmer(client).main.getStatus();
         assert(status.switch.switch.value);
     });
-    it('Can get device status', async function() {
+    it('Can get device status', async function () {
         let status = await virtualDimmer(client).getStatus();
         assert(status.components.main.switch.switch.value);
     });

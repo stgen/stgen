@@ -65,3 +65,7 @@ export function identifier(label: string, lowerCamelCase: boolean = false) {
 export function sortByIdentifier(a: { id?: string }, b: { id?: string }) {
     return identifier(a.id!).localeCompare(identifier(b.id!));
 };
+
+export function flat<T>(arr: T[][]): T[] {
+    return arr.reduce((data, cur) => data.concat(cur), []);
+}

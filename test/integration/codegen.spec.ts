@@ -6,6 +6,7 @@ import rimraf from 'rimraf';
 import * as generator from '../../codegen/generator';
 
 describe('Codegen', function () {
+  this.timeout(5000);
   function cleanupFiles() {
     if (fs.existsSync('test-gen')) {
       rimraf.sync('test-gen');
@@ -25,7 +26,6 @@ describe('Codegen', function () {
   });
 
   it('should generate valid code', function (done) {
-    this.timeout(5000);
     let code = generator.generate(testData);
     fs.mkdirSync('test-gen');
     code.forEach(f => fs.writeFileSync(`test-gen/${f.fileName}`, f.source));
