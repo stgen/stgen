@@ -34,20 +34,23 @@ jobs:
         run: printf "$ST_TEST_ACCESS_TOKEN" > accessToken
       - run: npm run build --if-present
       - run: npm test
-      - run: echo ${{github.ref}}
 
   rollback-release-tag:
     runs-on: ubuntu-latest
     needs: build
     if: contains(github.ref, 'refs/tags/v') && failure()
     steps:
+      - run: echo "::set-env name=SOURCE_TAG::${GITHUB_REF#refs/tags/}"
       - uses: actions/checkout@v2
       - name: Remove tag
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "stgen@users.noreply.github.com"
           git remote add github "https://$GITHUB_ACTOR:$GITHUB_TOKEN@github.com/$GITHUB_REPOSITORY.git"
-          git push github :${GITHUB_REF}
+          git fetch --tags
+          git revert $SOURCE_TAG
+          git push
+          git push github :$GITHUB_REF
 
   create-release:
     runs-on: ubuntu-latest
