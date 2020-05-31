@@ -1,8 +1,7 @@
-import { Capability, CapabilityAttributeSchema, CapabilityJSONSchema, CapabilityReference, Component, Device, SmartThingsClient, CustomCapabilityStatus, CapabilitySchemaPropertyName, SceneSummary, Room, LocationItem, Location } from "@smartthings/core-sdk";
-import { format, identifier, retry, throttle, sortByIdentifier, flat, lowerCase } from "./utils";
+import { Capability, CapabilityAttributeSchema, CapabilityJSONSchema, CapabilityReference, CapabilitySchemaPropertyName, Component, CustomCapabilityStatus, Device, Location, Room, SceneSummary, SmartThingsClient } from "@smartthings/core-sdk";
 import fs from 'fs';
 import stringify from 'json-stable-stringify';
-import { Context } from "mocha";
+import { flat, format, identifier, lowerCase, retry, sortByIdentifier, throttle } from "./utils";
 
 export async function stgen(client: SmartThingsClient, options: { outputDir: string }): Promise<void> {
     let result = generate(await getAllSmartThingsData(client));

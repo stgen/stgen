@@ -39,13 +39,13 @@
     "json-stable-stringify": "^1.0.1",
     "mocha": "^7.2.0",
     "module-alias": "^2.2.2",
-    "prettier": "^2.0.5",
     "rimraf": "^3.0.2",
-    "transliteration": "^2.1.11",
-    "typescript": "^3.9.3",
-    "yargs": "^15.3.1"
+    "typescript": "^3.9.3"
   },
   "dependencies": {
+    "prettier": "^2.0.5",
+    "transliteration": "^2.1.11",
+    "yargs": "^15.3.1",
     "@smartthings/core-sdk": "^0.2.11",
     "@smartthings/smartapp": "^2.1.0"
   }
