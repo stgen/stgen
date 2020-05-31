@@ -36,7 +36,6 @@
     "@types/prettier": "^2.0.1",
     "@types/rimraf": "^3.0.0",
     "@types/yargs": "^15.0.5",
-    "json-stable-stringify": "^1.0.1",
     "mocha": "^7.2.0",
     "module-alias": "^2.2.2",
     "rimraf": "^3.0.2",
@@ -46,6 +45,7 @@
     "prettier": "^2.0.5",
     "transliteration": "^2.1.11",
     "yargs": "^15.3.1",
+    "json-stable-stringify": "^1.0.1",
     "@smartthings/core-sdk": "^0.2.11",
     "@smartthings/smartapp": "^2.1.0"
   }
