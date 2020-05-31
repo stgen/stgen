@@ -2,7 +2,7 @@ import prettier from 'prettier';
 import { slugify } from 'transliteration';
 
 const maxRetries = 5;
-function sleep(ms: number): Promise<void> {
+export function sleep(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 export async function retry<T>(toDo: () => Promise<T>): Promise<T> {
@@ -49,6 +49,10 @@ export function format(source: string): string {
     return prettier.format(source, { parser: "typescript", semi: true })
 }
 
+export function lowerCase(label: string) {
+    return label.charAt(0).toLowerCase() + label.slice(1);
+}
+
 export function identifier(label: string, lowerCamelCase: boolean = false) {
     label = label.replace('\'', '');
     label = slugify(label, { lowercase: true, separator: '-', allowedChars: 'a-zA-Z0-9_$' });
@@ -57,7 +61,7 @@ export function identifier(label: string, lowerCamelCase: boolean = false) {
         label = '$' + label;
     }
     if (lowerCamelCase) {
-        label = label.charAt(0).toLowerCase() + label.slice(1);
+        label = lowerCase(label);
     }
     return label;
 }

@@ -1,7 +1,8 @@
-import { Capability, CapabilityAttributeSchema, CapabilityJSONSchema, CapabilityReference, Component, Device, SmartThingsClient, CustomCapabilityStatus, CapabilitySchemaPropertyName } from "@smartthings/core-sdk";
-import { format, identifier, retry, throttle, sortByIdentifier, flat } from "./utils";
+import { Capability, CapabilityAttributeSchema, CapabilityJSONSchema, CapabilityReference, Component, Device, SmartThingsClient, CustomCapabilityStatus, CapabilitySchemaPropertyName, SceneSummary, Room, LocationItem, Location } from "@smartthings/core-sdk";
+import { format, identifier, retry, throttle, sortByIdentifier, flat, lowerCase } from "./utils";
 import fs from 'fs';
 import stringify from 'json-stable-stringify';
+import { Context } from "mocha";
 
 export async function stgen(client: SmartThingsClient, options: { outputDir: string }): Promise<void> {
     let result = generate(await getAllSmartThingsData(client));
@@ -18,10 +19,22 @@ export interface CapabilityMap {
 export interface SmartThingsData {
     devices: Device[];
     capabilities: CapabilityMap;
+    scenes: SceneSummary[];
+    rooms: Room[];
+    locations: Location[];
+}
+
+interface BuiltContext {
+    deviceMethodNames?: { [deviceId: string]: string },
+    locationMethodNames?: { [locationId: string]: string },
+    roomClassNames?: { [roomId: string]: string }
 }
 
 export async function getAllSmartThingsData(client: SmartThingsClient): Promise<SmartThingsData> {
-    let devices = await retry(() => throttle(() => client.devices.list()));
+    let [devices, scenes, locationRefs] = await Promise.all([
+        client.devices.list(),
+        client.scenes.list(),
+        client.locations.list()]);
     let allCapabilityReferences = flat(devices.map(
         d => flat(d.components?.map(c => c.capabilities) ?? [])));
     let capabilities: CapabilityMap = {};
@@ -34,35 +47,37 @@ export async function getAllSmartThingsData(client: SmartThingsClient): Promise<
         let capability = await throttle(() => client.capabilities.get(cap.id, cap.version!));
         capabilities[cap.id][cap.version!] = capability;
     })));
+    let locations = await Promise.all(
+        locationRefs.map(ref => retry(() => throttle(() => client.locations.get(ref.locationId)))));
+    let rooms = flat((await Promise.all(
+        locations.map(
+            l => retry(() => throttle(() => client.rooms.list(l.locationId)))))));
     return {
         devices,
-        capabilities
+        capabilities,
+        scenes,
+        rooms,
+        locations
     };
 }
 
 export function generate(data: SmartThingsData): { fileName: string, source: string }[] {
-    let capabilities = format(`
-    import * as stgen from "stgen";
-    import * as st from "@smartthings/core-sdk";
-
-    ${generateCapabilityDefinitions(data.capabilities)}
-    `);
-    let devices = format(`
-    import * as stgen from "stgen";
-    import * as capabilities from "./capabilities";
-    import * as st from "@smartthings/core-sdk";
-
-    ${generateDevices(data.devices)}
-    `);
+    let context: BuiltContext = {};
 
     return [
-        { fileName: 'capabilities.ts', source: capabilities },
-        { fileName: "devices.ts", source: devices }
+        { fileName: 'capabilities.ts', source: format(generateCapabilities(data.capabilities, context)) },
+        { fileName: "devices.ts", source: format(generateDevices(data.devices, context)) },
+        { fileName: 'scenes.ts', source: format(generateScenes(data.scenes, context)) },
+        { fileName: 'locations.ts', source: format(generateLocations(data, context)) }
     ];
 }
 
-function generateCapabilityDefinitions(capabilities: CapabilityMap): string {
-    let result = "";
+function generateCapabilities(capabilities: CapabilityMap, context: BuiltContext): string {
+    let result = `
+    import * as stgen from "@stgen/stgen";
+    import * as st from "@smartthings/core-sdk";
+
+    `;
     for (const cap of Object.keys(capabilities).sort()) {
         result += `export namespace ${identifier(cap)} {`;
         for (const version of Object.keys(capabilities[cap]).sort()) {
@@ -119,9 +134,9 @@ function generateCommands(capability: Capability): string {
         let cmd = commands[cmdKey];
         return `
         /**
-         * Executes "${cmd.name}" for this capability
+         * Executes "${cmd.name ?? cmdKey}" for this capability
          */
-        async ${identifier(cmd.name ?? cmdKey, true)}(${(cmd.arguments ?? [])
+        ${identifier(cmd.name ?? cmdKey, true)}(${(cmd.arguments ?? [])
                 .map(arg => `${identifier(arg.name, true)}${arg.optional ? '?' : ''}: \
                              ${generateInnerTypes(arg.schema, false)}`)
                 .join(', ')}): Promise<st.Status> {
@@ -213,9 +228,14 @@ function generateInnerTypes(property: Types, required: boolean = false): string 
     }
 }
 
-function generateDevices(devices: Device[]): string {
+function generateDevices(devices: Device[], context: BuiltContext): string {
+    context.deviceMethodNames = {};
     let seenNames = new Set<string>();
-    return devices.sort((a, b) => a.label!.localeCompare(b.label!)).map(d => {
+    return `
+    import * as stgen from "@stgen/stgen";
+    import * as capabilities from "./capabilities";
+    import * as st from "@smartthings/core-sdk"
+    ${devices.sort((a, b) => a.label!.localeCompare(b.label!)).map(d => {
         let name = identifier(d.label!);
         let lowerName = identifier(d.label!, true);
         if (seenNames.has(name)) {
@@ -224,6 +244,7 @@ function generateDevices(devices: Device[]): string {
             lowerName = identifier(combinedLabel, true);
         }
         seenNames.add(name);
+        context.deviceMethodNames![d.deviceId!] = lowerName;
         return `
         /**
          * Gets a device client for "${d.label}"
@@ -256,7 +277,8 @@ function generateDevices(devices: Device[]): string {
             }
         }
         `
-    }).join('\n');
+    }).join('\n')}
+    `;
 }
 
 function capabilityNamespace(capability: CapabilityReference): string {
@@ -285,3 +307,106 @@ function generateComponentDefinitions(components: Component[]): string {
     `).join('\n');
 }
 
+export function generateScenes(scenes: SceneSummary[], context: BuiltContext): string {
+    return `
+    import * as stgen from "@stgen/stgen";
+    import * as st from "@smartthings/core-sdk";
+
+    ${scenes.map(scene => `
+    export function ${identifier(scene.sceneName!, true)}(client: st.SmartThingsClient):
+        ${identifier(scene.sceneName!)} {
+        return new ${identifier(scene.sceneName!)}(client);
+    }
+    export class ${identifier(scene.sceneName!)} extends stgen.Scene {
+        constructor(client: st.SmartThingsClient) {
+            super(client, ${stringify(scene)} as any);
+        }
+    }
+    `).join('\n')}
+    `
+}
+
+function generateLocations(data: SmartThingsData, context: BuiltContext): string {
+    context.locationMethodNames = {};
+    let seenNames = new Set<string>();
+    return `
+    import * as stgen from "@stgen/stgen";
+    import * as st from "@smartthings/core-sdk";
+    import * as devices from "./devices";
+
+    ${data.locations.map(l => {
+        let name = identifier(l.name);
+        let lowerName = identifier(l.name, true);
+        if (seenNames.has(name)) {
+            let combinedLabel = l.name! + '_' + l.locationId;
+            name = identifier(combinedLabel);
+            lowerName = identifier(combinedLabel, true);
+        }
+        seenNames.add(name);
+        context.locationMethodNames![l.locationId] = lowerName;
+        let rooms = data.rooms
+            .filter(r => r.locationId == l.locationId)
+            .sort((r1, r2) => r1.name!.localeCompare(r2.name!));
+        let roomlessDevices = data.devices
+            .filter(d => d.locationId == l.locationId && !d.roomId)
+            .sort((d1, d2) => d1.name!.localeCompare(d2.name!));
+        return `
+        export function ${lowerName}(client: st.SmartThingsClient) {
+            return new ${name}.Location(client);
+        }
+        export namespace ${name} {
+            export namespace Rooms {
+                ${generateRooms(rooms, data, context)}
+            }
+
+            export class Location extends stgen.Location {
+                constructor(client: st.SmartThingsClient) {
+                    super(client, ${stringify(l)} as any);
+                }
+
+                ${rooms.map(r => `
+                readonly ${lowerCase(context.roomClassNames![r.roomId!])} = new Rooms.${context.roomClassNames![r.roomId!]}(this);
+                `).join('\n')}
+
+                ${roomlessDevices ? `
+                readonly noRoomAssigned = {
+                    ${roomlessDevices.map(d => `
+                    ${context.deviceMethodNames![d.deviceId!]}: devices.${context.deviceMethodNames![d.deviceId!]}(this.client)
+                    `).join(',\n')}
+                } as const;
+                `: ''}
+            }
+        }
+        `
+    }).join('\n')}
+    `;
+}
+
+function generateRooms(rooms: Room[], data: SmartThingsData, context: BuiltContext): string {
+    context.roomClassNames = {};
+    let seenNames = new Set<string>();
+    seenNames.add('NoRoom');
+    return rooms.map(r => {
+        let name = identifier(r.name!);
+        if (seenNames.has(name)) {
+            let combinedLabel = r.name! + '_' + r.roomId!;
+            name = identifier(combinedLabel);
+        }
+        seenNames.add(name);
+        context.roomClassNames![r.roomId!] = name;
+        let devices = data.devices
+            .filter(d => d.roomId == r.roomId)
+            .sort((d1, d2) => d1.name!.localeCompare(d2.name!));
+        return `
+        export class ${name} extends stgen.Room<Location> {
+            constructor(location: Location) {
+                super(location, ${stringify(r)} as any);
+            }
+
+            ${devices.map(d => `
+            readonly ${context.deviceMethodNames![d.deviceId!]} = devices.${context.deviceMethodNames![d.deviceId!]}(this.client);
+            `).join('\n')}
+        }
+        `;
+    }).join('\n');
+}

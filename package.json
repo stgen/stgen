@@ -1,5 +1,5 @@
 {
-  "name": "stgen",
+  "name": "@stgen/stgen",
   "version": "0.1.0",
   "description": "Generates Typscript bindings to your SmartThings devices for easy programming",
   "main": "build/lib/index.js",
@@ -12,16 +12,23 @@
     "watch": "tsc -w",
     "clean": "rm -rf build && rm -rf gen",
     "pretest": "npm run generate",
-    "generate": "node ./build/codegen/index.js -i accessToken -o gen && npm run buildtest"
+    "generate": "node ./build/codegen/index.js -i accessToken -o gen && npm run buildtest",
+    "prepublishOnly": "npm run clean && npm run build",
+    "preversion": "git tag -d $(git tag) && git fetch --tags",
+    "postversion": "git push && git push --tags"
   },
   "bin": {
-    "stgen": "./build/codegen/index.js"
+    "@stgen/stgen": "./build/codegen/index.js"
   },
   "mocha": {
     "spec": "./build/test/**/*.js"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/stgen/stgen"
+  },
   "author": "David Poll (david@depoll.com)",
-  "license": "ISC",
+  "license": "MIT",
   "devDependencies": {
     "@types/json-stable-stringify": "^1.0.32",
     "@types/mocha": "^7.0.2",

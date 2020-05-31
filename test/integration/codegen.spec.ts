@@ -6,7 +6,7 @@ import rimraf from 'rimraf';
 import * as generator from '../../codegen/generator';
 
 describe('Codegen', function () {
-  this.timeout(5000);
+  this.timeout(10000);
   function cleanupFiles() {
     if (fs.existsSync('test-gen')) {
       rimraf.sync('test-gen');

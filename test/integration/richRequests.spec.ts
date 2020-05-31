@@ -1,13 +1,17 @@
 import moduleAlias from 'module-alias';
-moduleAlias.addAlias('stgen', `${__dirname}/../../lib/index`);
+moduleAlias.addAlias('@stgen/stgen', `${__dirname}/../../lib/index`);
 
+import { BearerTokenAuthenticator, SmartThingsClient } from '@smartthings/core-sdk';
 import assert from 'assert';
 import fs from 'fs';
-import { SmartThingsClient, BearerTokenAuthenticator } from '@smartthings/core-sdk';
-import { virtualDimmer, virtualSwitch } from '../../gen/devices';
+import { sleep } from './../../codegen/utils';
+import { virtualDimmer, virtualSwitch } from './../../gen/devices';
+import { testHome } from './../../gen/locations';
+import { turnOffVirtualSwitch, turnOnVirtualSwitch } from './../../gen/scenes';
+
 
 describe('Rich Requests', function () {
-    this.timeout(5000);
+    this.timeout(10000);
     let client: SmartThingsClient;
     before(function () {
         client = new SmartThingsClient(
@@ -29,22 +33,50 @@ describe('Rich Requests', function () {
         let cap = virtualSwitch(client).main.switch;
         let status = await cap.on();
         assert.strictEqual(status.status, 'success');
+        await sleep(500);
         let newState = await cap.getStatus();
         assert.strictEqual(newState.switch.value, 'on');
         status = await cap.off();
         assert.strictEqual(status.status, 'success');
+        await sleep(500);
         newState = await cap.getStatus();
         assert.strictEqual(newState.switch.value, 'off');
     });
-    it('Can send a command with parameters', async function() {
+    it('Can send a command with parameters', async function () {
         let cap = virtualDimmer(client).main.switchlevel;
         let status = await cap.setlevel(50);
         assert.strictEqual(status.status, 'success');
+        await sleep(500);
         let newState = await cap.getStatus();
         assert.strictEqual(newState.level.value, 50);
         status = await cap.setlevel(75);
         assert.strictEqual(status.status, 'success');
+        await sleep(500);
         newState = await cap.getStatus();
         assert.strictEqual(newState.level.value, 75);
+    });
+    it('Can execute a scene', async function () {
+        let onScene = turnOnVirtualSwitch(client);
+        let offScene = turnOffVirtualSwitch(client);
+        let cap = virtualSwitch(client).main.switch;
+
+        let status = await onScene.execute();
+        assert.strictEqual(status.status, 'success');
+        await sleep(500);
+        let newState = await cap.getStatus();
+        assert.strictEqual(newState.switch.value, 'on');
+        status = await offScene.execute();
+        assert.strictEqual(status.status, 'success');
+        await sleep(500);
+        newState = await cap.getStatus();
+        assert.strictEqual(newState.switch.value, 'off');
+    });
+    it('Can get access through a location/room', async function () {
+        let status = await testHome(client).virtualRoom.virtualSwitch.getStatus();
+        assert(status.components.main.switch.switch);
+    });
+    it('Can get access through a location with no room', async function () {
+        let status = await testHome(client).noRoomAssigned.roomlessVirtualSwitch.getStatus();
+        assert(status.components.main.switch.switch);
     });
 });
