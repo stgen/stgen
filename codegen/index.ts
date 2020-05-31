@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 import { SmartThingsClient, BearerTokenAuthenticator } from "@smartthings/core-sdk";
 import fs from 'fs';
 import { getAllSmartThingsData, generate, stgen } from "./generator";
