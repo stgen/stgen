@@ -70,6 +70,7 @@ jobs:
 
   publish-npm:
     needs: build
+    if: contains(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -84,6 +85,7 @@ jobs:
 
   publish-gpr:
     needs: build
+    if: contains(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
