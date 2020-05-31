@@ -15,7 +15,7 @@
     "generate": "node ./build/codegen/index.js -i accessToken -o gen && npm run buildtest",
     "prepublishOnly": "npm run clean && npm run build",
     "preversion": "git tag -d $(git tag) && git fetch --tags",
-    "postversion": "git push && git push --tags"
+    "postversion": "git commit --amend -m \"$(git log --format=%B -n1)\" -m \"[ci skip]\" && git push && git push --tags"
   },
   "bin": {
     "@stgen/stgen": "./build/codegen/index.js"
