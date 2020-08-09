@@ -21,17 +21,18 @@ describe('Codegen', function () {
   before(async function () {
     cleanupFiles();
     testData = await generator.getAllSmartThingsData(
-      new SmartThingsClient(
-        new BearerTokenAuthenticator(fs.readFileSync('accessToken', 'utf-8'))));
+      new SmartThingsClient(new BearerTokenAuthenticator(fs.readFileSync('accessToken', 'utf-8')))
+    );
   });
 
   it('should generate valid code', function (done) {
-    let code = generator.generate(testData);
+    const code = generator.generate(testData);
     fs.mkdirSync('test-gen');
     code.forEach(f => fs.writeFileSync(`test-gen/${f.fileName}`, f.source));
-    exec('npm run tsc', (error, stdout, sterr) => {
+    exec('npm run tsc', (error, _stdout, _sterr) => {
       code.forEach(f =>
-        assert(fs.existsSync(`build/test-gen/${f.fileName.replace('.ts', '.js')}`)));
+        assert(fs.existsSync(`build/test-gen/${f.fileName.replace('.ts', '.js')}`))
+      );
 
       done(error);
     });

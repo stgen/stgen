@@ -7,7 +7,7 @@
   "scripts": {
     "test": "mocha",
     "tsc": "tsc",
-    "build": "tsc -p tsconfig.build.json",
+    "build": "npm run lint && tsc -p tsconfig.build.json",
     "buildtest": "tsc",
     "watch": "tsc -w",
     "clean": "rm -rf build && rm -rf gen",
@@ -15,6 +15,7 @@
     "generate": "node ./build/codegen/index.js -i accessToken -o gen && npm run buildtest",
     "prepublishOnly": "npm run clean && npm run build",
     "preversion": "git tag -d $(git tag) && git fetch --tags",
+    "lint": "eslint .",
     "postversion": "git commit --amend -m \"$(git log --format=%B -n1)\" -m \"[ci skip]\" && git push && git push --tags"
   },
   "bin": {
@@ -29,24 +30,48 @@
   },
   "author": "David Poll (david@depoll.com)",
   "license": "MIT",
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged"
+    }
+  },
+  "lint-staged": {
+    "*.{js,ts,tsx}": [
+      "eslint --fix"
+    ]
+  },
   "devDependencies": {
     "@types/json-stable-stringify": "^1.0.32",
-    "@types/mocha": "^7.0.2",
+    "@types/mocha": "^8.0.0",
     "@types/module-alias": "^2.0.0",
-    "@types/prettier": "^2.0.1",
+    "@types/prettier": "^2.0.2",
     "@types/rimraf": "^3.0.0",
+    "@types/uuid": "^8.0.0",
     "@types/yargs": "^15.0.5",
-    "mocha": "^7.2.0",
+    "@typescript-eslint/eslint-plugin": "^3.7.1",
+    "@typescript-eslint/parser": "^3.7.1",
+    "eslint": "^7.5.0",
+    "eslint-config-prettier": "^6.11.0",
+    "eslint-config-standard": "^14.1.1",
+    "eslint-plugin-import": "^2.22.0",
+    "eslint-plugin-node": "^11.1.0",
+    "eslint-plugin-prettier": "^3.1.4",
+    "eslint-plugin-promise": "^4.2.1",
+    "eslint-plugin-standard": "^4.0.1",
+    "husky": "^4.2.5",
+    "lint-staged": "^10.2.11",
+    "mocha": "^8.0.1",
     "module-alias": "^2.2.2",
+    "prettier": "^2.0.5",
     "rimraf": "^3.0.2",
-    "typescript": "^3.9.3"
+    "typescript": "^3.9.7"
   },
   "dependencies": {
-    "prettier": "^2.0.5",
-    "transliteration": "^2.1.11",
-    "yargs": "^15.3.1",
+    "@smartthings/core-sdk": "^0.3.1",
+    "@smartthings/smartapp": "^2.2.0",
     "json-stable-stringify": "^1.0.1",
-    "@smartthings/core-sdk": "^0.2.11",
-    "@smartthings/smartapp": "^2.1.0"
+    "transliteration": "^2.1.11",
+    "uuid": "^8.3.0",
+    "yargs": "^15.4.1"
   }
 }

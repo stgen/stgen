@@ -1,46 +1,77 @@
-import { Device as STDevice, Component as STComponent, Capability as STCapability, SmartThingsClient } from "@smartthings/core-sdk"
+import {
+  Device as STDevice,
+  Component as STComponent,
+  Capability as STCapability,
+  SmartThingsClient,
+} from '@smartthings/core-sdk';
 
 export class Device<TStatus> {
-    readonly id: string;
-    constructor(readonly client: SmartThingsClient, readonly raw: STDevice) {
-        this.id = raw.deviceId!;
-    }
-    async getStatus(): Promise<TStatus> {
-        return await this.client.devices.getStatus(this.id) as TStatus;
-    }
+  readonly id: string;
+  constructor(readonly client: SmartThingsClient, readonly raw: STDevice) {
+    this.id = raw.deviceId!;
+  }
+  async getStatus(): Promise<TStatus> {
+    return (await this.client.devices.getStatus(this.id)) as TStatus;
+  }
 }
 
-export abstract class Component<TStatus extends object, TDevice extends Device<any>> {
-    readonly client: SmartThingsClient;
-    readonly id: string;
-    constructor(readonly device: TDevice, readonly raw: STComponent) {
-        this.client = device.client;
-        this.id = raw.id!;
-    }
-    async getStatus(): Promise<TStatus> {
-        return await this.client.devices.getComponentStatus(this.device.id, this.id) as TStatus
-    }
+export abstract class Component<TStatus, TDevice extends Device<unknown>> {
+  readonly client: SmartThingsClient;
+  readonly id: string;
+  constructor(readonly device: TDevice, readonly raw: STComponent) {
+    this.client = device.client;
+    this.id = raw.id!;
+  }
+  async getStatus(): Promise<TStatus> {
+    return ((await this.client.devices.getComponentStatus(
+      this.device.id,
+      this.id
+    )) as unknown) as TStatus;
+  }
 }
 
-export abstract class Capability<TStatus extends object, TComponent extends Component<any, TDevice>, TDevice extends Device<any>> {
-    readonly client: SmartThingsClient;
-    readonly device: TDevice;
-    readonly id: string;
-    constructor(readonly component: TComponent, readonly raw: STCapability) {
-        this.client = component.client;
-        this.device = component.device;
-        this.id = raw.id!;
-    }
-    async getStatus(): Promise<TStatus> {
-        return await this.client.devices.getCapabilityStatus(
-            this.device.id, this.component.id, this.id) as TStatus;
-    }
+export abstract class Capability<
+  TStatus,
+  TComponent extends Component<unknown, TDevice>,
+  TDevice extends Device<unknown>
+> {
+  readonly client: SmartThingsClient;
+  readonly device: TDevice;
+  readonly id: string;
+  constructor(readonly component: TComponent, readonly raw: STCapability) {
+    this.client = component.client;
+    this.device = component.device;
+    this.id = raw.id!;
+  }
+  async getStatus(): Promise<TStatus> {
+    return ((await this.client.devices.getCapabilityStatus(
+      this.device.id,
+      this.component.id,
+      this.id
+    )) as unknown) as TStatus;
+  }
 }
 
 let defaultClient: SmartThingsClient;
-export function setDefaultClient(client: SmartThingsClient) {
-    defaultClient = client;
+export function setDefaultClient(client: SmartThingsClient): void {
+  defaultClient = client;
 }
 export function getDefaultClient(): SmartThingsClient {
-    return defaultClient;
+  return defaultClient;
 }
+
+export type UnknownDevice = Device<unknown>;
+export type UnknownComponent = Component<unknown, UnknownDevice>;
+export type UnknownCapability = Capability<unknown, UnknownComponent, UnknownDevice>;
+
+export type Components<T extends UnknownDevice> = {
+  [K in keyof T]: T[K] extends UnknownComponent ? K : never;
+}[keyof T];
+
+export type Capabilities<T extends UnknownComponent> = {
+  [K in keyof T]: T[K] extends UnknownCapability ? K : never;
+}[keyof T];
+
+export type DeviceCapabilities<T extends UnknownDevice> = {
+  [K in Components<T>]: Capabilities<T[K]>;
+}[Components<T>];
