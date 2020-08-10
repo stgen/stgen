@@ -1,6 +1,6 @@
 {
   "name": "@stgen/stgen",
-  "version": "0.1.1-alpha.5",
+  "version": "0.1.1-alpha.6",
   "description": "Generates Typscript bindings to your SmartThings devices for easy programming",
   "main": "build/lib/index.js",
   "types": "build/lib/index.d.ts",
