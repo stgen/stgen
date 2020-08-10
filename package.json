@@ -63,11 +63,15 @@
     "mocha": "^8.1.1",
     "module-alias": "^2.2.2",
     "rimraf": "^3.0.2",
-    "typescript": "^3.9.7"
+    "typescript": "^3.9.7",
+    "@smartthings/core-sdk": "^0.4.0",
+    "@smartthings/smartapp": "^2.2.0"
+  },
+  "peerDependencies": {
+    "@smartthings/core-sdk": "^0.4.0",
+    "@smartthings/smartapp": "^2.2.0"
   },
   "dependencies": {
-    "@smartthings/core-sdk": "^0.4.0",
-    "@smartthings/smartapp": "^2.2.0",
     "json-stable-stringify": "^1.0.1",
     "prettier": "^2.0.5",
     "transliteration": "^2.1.11",
