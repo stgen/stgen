@@ -81,4 +81,12 @@ export class STGenSmartApp extends SmartApp {
     this.subscribedCapabilities.add(capability.id);
     return this;
   }
+
+  subscribeAll(
+    capabilities: UnknownCapability[],
+    callback: (context: SmartAppContext, event: AppEvent.DeviceEvent) => void
+  ): this {
+    capabilities.forEach(cap => this.subscribe(cap, callback));
+    return this;
+  }
 }
