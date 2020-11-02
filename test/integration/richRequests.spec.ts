@@ -44,12 +44,12 @@ describe('Rich Requests', function () {
   });
   it('Can send a command with parameters', async function () {
     const cap = virtualDimmer(client).main.switchlevel;
-    let status = await cap.setlevel(50);
+    let status = await cap.setlevel(50, 0);
     assert.strictEqual(status.status, 'success');
     await sleep(500);
     let newState = await cap.getStatus();
     assert.strictEqual(newState.level.value, 50);
-    status = await cap.setlevel(75);
+    status = await cap.setlevel(75, 0);
     assert.strictEqual(status.status, 'success');
     await sleep(500);
     newState = await cap.getStatus();

@@ -5,6 +5,19 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "Generate SmartThings Bindings",
+      "request": "launch",
+      "runtimeArgs": [
+        "run-script",
+        "generate"
+      ],
+      "runtimeExecutable": "npm",
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "type": "pwa-node"
+    },
+    {
       "type": "node",
       "request": "launch",
       "name": "Mocha Tests",
@@ -12,15 +25,6 @@
       "args": ["--timeout", "999999", "--colors", "${workspaceFolder}/build/test"],
       "internalConsoleOptions": "openOnSessionStart",
       "skipFiles": ["<node_internals>/**"]
-    },
-    {
-      "type": "node",
-      "request": "launch",
-      "name": "Generate SmartThings Bindings",
-      "skipFiles": ["<node_internals>/**"],
-      "program": "${workspaceFolder}/build/codegen/index.js",
-      "outFiles": ["${workspaceFolder}/gen/*.ts"],
-      "args": ["-i", "accessToken", "-o", "gen"]
     }
   ]
 }
