@@ -2,7 +2,6 @@ import { SmartApp, SmartAppOptions, SmartAppContext } from '@smartthings/smartap
 import { AppEvent } from '@smartthings/smartapp/lib/lifecycle-events';
 import { UnknownCapability } from './device';
 import { StatusType, Select, ValueOf } from './utils';
-import { v4 as uuid4 } from 'uuid';
 
 const STGEN_EVENT_PREFIX = 'stgen-smartapp-events';
 
@@ -53,7 +52,7 @@ export class STGenSmartApp extends SmartApp {
           const sub = await context.api.subscriptions.subscribeToCapability(
             cap,
             '*',
-            `${STGEN_EVENT_PREFIX}_${uuid4()}`
+            `${STGEN_EVENT_PREFIX}_${cap}`
           );
           console.log(sub);
         }
