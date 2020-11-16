@@ -394,6 +394,16 @@ function generateComponentDefinitions(components: Component[]): string {
 }
 
 export function generateScenes(scenes: SceneSummary[]): string {
+  // Remove dates from scenes so that generated code doesn't change constantly
+  scenes = scenes.map(scene => {
+    const {
+      lastExecutedDate: _lastExecutedDate,
+      lastUpdatedDate: _lastUpdatedDate,
+      createdDate: _createdDate,
+      ...newScene
+    } = scene;
+    return newScene;
+  });
   return `
     /* eslint-disable @typescript-eslint/no-namespace */
     /* eslint-disable @typescript-eslint/no-empty-interface */
