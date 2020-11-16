@@ -40,7 +40,7 @@ jobs:
     needs: build
     if: contains(github.ref, 'refs/tags/v') && failure()
     steps:
-      - run: echo "name=SOURCE_TAG::${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+      - run: echo "SOURCE_TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
       - uses: actions/checkout@v2
       - name: Remove tag
         run: |
@@ -57,7 +57,7 @@ jobs:
     needs: build
     if: contains(github.ref, 'refs/tags/v')
     steps:
-      - run: echo "name=SOURCE_TAG::${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+      - run: echo "SOURCE_TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
       - uses: actions/checkout@v2
       - uses: actions/create-release@v1
         env:
