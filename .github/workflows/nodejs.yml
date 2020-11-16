@@ -46,11 +46,10 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "stgen@users.noreply.github.com"
-          git remote add github "https://$GITHUB_ACTOR:$GITHUB_TOKEN@github.com/$GITHUB_REPOSITORY.git"
           git fetch --tags
           git revert $SOURCE_TAG
           git push
-          git push github :$GITHUB_REF
+          git push origin :$GITHUB_REF
 
   create-release:
     runs-on: ubuntu-latest
