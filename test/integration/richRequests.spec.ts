@@ -5,7 +5,7 @@ import { BearerTokenAuthenticator, SmartThingsClient } from '@smartthings/core-s
 import assert from 'assert';
 import fs from 'fs';
 import { sleep } from './../../codegen/utils';
-import { virtualDimmer, virtualSwitch } from './../../gen/devices';
+import { virtualContactSensor, virtualDimmer, virtualSwitch } from './../../gen/devices';
 import { testHome } from './../../gen/locations';
 import { turnOffVirtualSwitch, turnOnVirtualSwitch } from './../../gen/scenes';
 
@@ -78,5 +78,17 @@ describe('Rich Requests', function () {
   it('Can get access through a location with no room', async function () {
     const status = await testHome(client).noRoomAssigned.roomlessVirtualSwitch.getStatus();
     assert(status.components.main.switch.switch);
+  });
+  it('Can send a status event for a device', async function () {
+    let status = await virtualContactSensor(client).main.contactsensor.sendEvents({
+      attribute: 'contact',
+      value: 'open',
+    });
+    assert.strictEqual(status.contact.value, 'open');
+    status = await virtualContactSensor(client).main.contactsensor.sendEvents({
+      attribute: 'contact',
+      value: 'closed',
+    });
+    assert.strictEqual(status.contact.value, 'closed');
   });
 });
