@@ -1,7 +1,7 @@
-import { DeviceEvent } from '@smartthings/core-sdk';
+import { DeviceEvent, SmartThingsClient } from '@smartthings/core-sdk';
 import { SmartApp, SmartAppOptions, SmartAppContext } from '@smartthings/smartapp';
 import { AppEvent } from '@smartthings/smartapp/lib/lifecycle-events';
-import { UnknownCapability } from './device';
+import { getDefaultClient, UnknownCapability } from './device';
 import { StatusType, Select, ValueOf } from './utils';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -32,8 +32,10 @@ export class STGenSmartApp extends SmartApp {
   #callbacks = new Set<(context: SmartAppContext, event: AppEvent.DeviceEvent) => void>();
   #appId = '';
   #lastInstalledAppIds?: { lastLookup: Date; ids: string[] };
-  constructor(options?: SmartAppOptions) {
+  #patClient: SmartThingsClient;
+  constructor(patClient?: SmartThingsClient, options?: SmartAppOptions) {
     super(options);
+    this.#patClient = patClient ?? getDefaultClient();
     this.appId('stgen-smartapp')
       .permissions([
         'r:devices:*',
@@ -42,15 +44,9 @@ export class STGenSmartApp extends SmartApp {
         'r:locations:*',
         'r:scenes:*',
         'x:scenes:*',
-        'r:installedapps:*',
-        'w:installedapps:*',
-        'l:installedapps',
+        'i:deviceprofiles',
       ])
       .page('mainPage', async (context, page, configData) => {
-        const allDevices = await context.api.devices.list();
-        const appDevices = allDevices.filter(
-          d => d.app?.installedAppId == configData?.installedAppId
-        );
         page.name('STGen');
         page.section('Instructions', section => {
           section.name('Instructions');
@@ -63,29 +59,47 @@ export class STGenSmartApp extends SmartApp {
             .name('Github')
             .url('https://github.com/stgen/stgen-smartapp')
             .description('STGen SmartApp Github Repository');
+        });
+
+        if (this.#patClient) {
+          page.section('CreateDevice', async section => {
+            const allDevices = await this.#patClient.devices.list();
+            const appDevices = allDevices.filter(
+              d => d.app?.installedAppId == configData?.installedAppId
+            );
+            section.name('Create a Virtual Device');
+            if (appDevices.length >= 30) {
+              section
+                .paragraphSetting('createDisabledParagraph')
+                .name('Unable to create devices')
+                .description(
+                  'Please delete devices created by this app or install an additional instance of the app to create more devices.'
+                );
+            } else {
+              section
+                .pageSetting('createDevice')
+                .name('Create a Virtual Device')
+                .description('Create a virtual device that can be managed by this SmartApp');
+            }
+            section
+              .paragraphSetting('deviceCount')
+              .name('Device count:')
+              .description(`${appDevices.length}/30`);
+          });
+        }
+
+        page.section('HiddenConfig', section => {
+          section.name('Other Config');
+          section.hidden((true as unknown) as string); // As string because the typings are wrong
           section
             .textSetting('installedAppId')
             .name('Installed App ID')
             .disabled(true)
             .defaultValue(configData?.installedAppId ?? '');
         });
-        page.section('CreateDevice', section => {
-          section.name('Create a Virtual Device');
-          if (appDevices.length >= 30) {
-            section
-              .paragraphSetting('createDisabledParagraph')
-              .name('Unable to create devices')
-              .description(
-                'Please delete devices created by this app or install an additional instance of the app to create more devices.'
-              );
-          } else {
-            section.pageSetting('createDevice').name('Create a Virtual Device');
-          }
-          section.paragraphSetting('deviceCount').name(`Device count: ${appDevices.length}/30`);
-        });
       })
       .page('createDevice', async (context, page) => {
-        const allDeviceProfiles = await context.api.deviceProfiles.list();
+        const allDeviceProfiles = await this.#patClient.deviceProfiles.list();
         const newDeviceID = `stgen-smartapp_${uuidv4()}`;
         page.name('Create a device');
         page.section('Device Creation', section => {
