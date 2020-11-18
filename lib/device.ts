@@ -3,7 +3,6 @@ import {
   Component as STComponent,
   Capability as STCapability,
   SmartThingsClient,
-  DeviceEvent,
 } from '@smartthings/core-sdk';
 
 export class Device<TStatus> {
@@ -31,15 +30,6 @@ export abstract class Component<TStatus, TDevice extends Device<unknown>> {
   }
 }
 
-export interface EventDescription<TStatus, TAttributeName extends keyof TStatus> {
-  attribute: TAttributeName;
-  value: TStatus extends { [key in TAttributeName]: { value: infer TValue } } ? TValue : unknown;
-  unit?: string;
-  data?: {
-    [name: string]: unknown;
-  };
-}
-
 export abstract class Capability<
   TStatus,
   TComponent extends Component<unknown, TDevice>,
@@ -58,23 +48,6 @@ export abstract class Capability<
       this.device.id,
       this.component.id,
       this.id
-    )) as unknown) as TStatus;
-  }
-
-  async sendEvents<T extends EventDescription<TStatus, keyof TStatus>[]>(
-    ...events: T
-  ): Promise<TStatus> {
-    const decorated = events.map(
-      e =>
-        ({
-          component: this.component.id,
-          capability: this.id,
-          ...e,
-        } as DeviceEvent)
-    );
-    return ((await this.client.devices.createEvents(
-      this.device.id,
-      decorated
     )) as unknown) as TStatus;
   }
 }
