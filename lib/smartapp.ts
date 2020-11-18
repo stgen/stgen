@@ -1,7 +1,9 @@
+import { DeviceEvent } from '@smartthings/core-sdk';
 import { SmartApp, SmartAppOptions, SmartAppContext } from '@smartthings/smartapp';
 import { AppEvent } from '@smartthings/smartapp/lib/lifecycle-events';
 import { UnknownCapability } from './device';
 import { StatusType, Select, ValueOf } from './utils';
+import { v4 as uuidv4 } from 'uuid';
 
 const STGEN_EVENT_PREFIX = 'stgen-smartapp-events';
 
@@ -12,6 +14,13 @@ export interface EventType<
   attribute: Extract<attribute, string>;
   capability: Select<TCapability, 'id'>;
   value: ValueOf<StatusType<TCapability>, attribute>;
+}
+
+export interface EventDescription<TStatus, TAttributeName extends keyof TStatus> {
+  attribute: TAttributeName;
+  value: TStatus extends { [key in TAttributeName]: { value: infer TValue } } ? TValue : never;
+  unit?: TStatus extends { [key in TAttributeName]: { unit: infer TUnit } } ? TUnit : never;
+  data?: TStatus extends { [key in TAttributeName]: { data: infer TData } } ? TData : never;
 }
 
 /**
@@ -31,7 +40,11 @@ export class STGenSmartApp extends SmartApp {
         'r:scenes:*',
         'x:scenes:*',
       ])
-      .page('mainPage', async (context, page) => {
+      .page('mainPage', async (context, page, configData) => {
+        const allDevices = await context.api.devices.list();
+        const appDevices = allDevices.filter(
+          d => d.app?.installedAppId == configData?.installedAppId
+        );
         page.name('STGen');
         page.section('Instructions', section => {
           section.name('Instructions');
@@ -45,8 +58,55 @@ export class STGenSmartApp extends SmartApp {
             .url('https://github.com/stgen/stgen-smartapp')
             .description('STGen SmartApp Github Repository');
         });
+        page.section('CreateDevice', section => {
+          section.name('Create a Virtual Device');
+          if (appDevices.length >= 30) {
+            section
+              .paragraphSetting('createDisabledParagraph')
+              .name('Unable to create devices')
+              .description(
+                'Please delete devices created by this app or install an additional instance of the app to create more devices.'
+              );
+          } else {
+            section.pageSetting('createDevice').name('Create a Virtual Device');
+          }
+          section.paragraphSetting('deviceCount').name(`Device count: ${appDevices.length}/30`);
+        });
       })
-      .updated(async context => {
+      .page('createDevice', async (context, page) => {
+        const allDeviceProfiles = await context.api.deviceProfiles.list();
+        const newDeviceID = `stgen-smartapp_${uuidv4()}`;
+        page.name('Create a device');
+        page.section('Device Creation', section => {
+          section.name('Device Creation');
+          section
+            .textSetting(`createDevice/label`)
+            .name('New device label')
+            .description('A label for your new device')
+            .required(true);
+          section
+            .enumSetting(`createDevice/deviceProfile`)
+            .options(
+              allDeviceProfiles.map(profile => ({
+                id: profile.id,
+                name: `${profile.name} (capabilities: ${profile.components
+                  .reduce(
+                    (prev, cur) => prev.concat((cur.capabilities ?? []).map(c => c.id)),
+                    new Array<string>()
+                  )
+                  .join(', ')})`,
+              }))
+            )
+            .required(true);
+          section
+            .textSetting(`createDevice/id`)
+            .name('Unique Device ID')
+            .required(true)
+            .disabled(true)
+            .defaultValue(newDeviceID);
+        });
+      })
+      .updated(async (context, updateData) => {
         await context.api.subscriptions.delete();
         for (const cap of this.subscribedCapabilities) {
           const sub = await context.api.subscriptions.subscribeToCapability(
@@ -55,6 +115,23 @@ export class STGenSmartApp extends SmartApp {
             `${STGEN_EVENT_PREFIX}_${cap}`
           );
           console.log(sub);
+        }
+        if (context.configStringValue('createDevice/id')) {
+          await context.api.devices.create({
+            profileId: context.configStringValue('createDevice/deviceProfile'),
+            label: context.configStringValue('createDevice/label'),
+          });
+          const updatedConfig = { ...context.config };
+          delete updatedConfig['createDevice/id'];
+          delete updatedConfig['createDevice/deviceProfile'];
+          delete updatedConfig['createDevice/label'];
+          await context.api.installedApps.updateConfiguration(
+            updateData.installedApp.installedAppId,
+            {
+              config: updatedConfig,
+            }
+          );
+          console.log('Created device');
         }
       })
       .subscribedEventHandler(STGEN_EVENT_PREFIX, (context, event) => {
@@ -87,5 +164,38 @@ export class STGenSmartApp extends SmartApp {
   ): this {
     capabilities.forEach(cap => this.subscribe(cap, callback));
     return this;
+  }
+
+  /**
+   * Sends events to a device owned by this application.
+   *
+   * Sending events to other devices
+   * will fail.  Requires a ContextStore to be configured for the SmartApp so that events
+   * can be sent out of band.
+   *
+   * @param capability The capability to send events for.
+   * @param events The events to send.
+   */
+  async sendEvents<
+    TCapability extends UnknownCapability,
+    T extends EventDescription<StatusType<TCapability>, keyof StatusType<TCapability>>[]
+  >(capability: TCapability, ...events: T): Promise<StatusType<TCapability>> {
+    const decorated = events.map(
+      e =>
+        ({
+          component: capability.component.id,
+          capability: capability.id,
+          ...e,
+        } as DeviceEvent)
+    );
+    const installedAppId = capability.device.raw.app?.installedAppId;
+    if (!installedAppId) {
+      throw new Error('Device has no installed app ID');
+    }
+    const context = await this.withContext(capability.device.raw.app?.installedAppId ?? '');
+    return ((await context.api.devices.createEvents(
+      capability.device.id,
+      decorated
+    )) as unknown) as StatusType<TCapability>;
   }
 }
