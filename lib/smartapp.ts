@@ -153,10 +153,10 @@ export class STGenSmartApp extends SmartApp {
           callback(context, event);
         }
       })
-      .installed((context, installData) => {
+      .installed((_context, _installData) => {
         this.#lastInstalledAppIds = undefined;
       })
-      .uninstalled((context, uninstallData) => {
+      .uninstalled((_context, _uninstallData) => {
         this.#lastInstalledAppIds = undefined;
       });
   }
