@@ -5,7 +5,8 @@ import { UnknownCapability } from './device';
 import { StatusType, Select, ValueOf } from './utils';
 import { v4 as uuidv4 } from 'uuid';
 
-const STGEN_EVENT_PREFIX = 'stgen-smartapp-events';
+const STGEN_EVENT_PREFIX = 'stgen';
+const INSTALLED_APP_IDS_TTL = 5 * 60 * 1000;
 
 export interface EventType<
   TCapability extends UnknownCapability,
@@ -27,8 +28,10 @@ export interface EventDescription<TStatus, TAttributeName extends keyof TStatus>
  * Provides a pre-configured SmartApp for use with STGen.
  */
 export class STGenSmartApp extends SmartApp {
-  private subscribedCapabilities = new Set<string>();
-  private callbacks = new Set<(context: SmartAppContext, event: AppEvent.DeviceEvent) => void>();
+  #subscribedCapabilities = new Set<string>();
+  #callbacks = new Set<(context: SmartAppContext, event: AppEvent.DeviceEvent) => void>();
+  #appId = '';
+  #lastInstalledAppIds?: { lastLookup: Date; ids: string[] };
   constructor(options?: SmartAppOptions) {
     super(options);
     this.appId('stgen-smartapp')
@@ -39,6 +42,9 @@ export class STGenSmartApp extends SmartApp {
         'r:locations:*',
         'r:scenes:*',
         'x:scenes:*',
+        'r:installedapps:*',
+        'w:installedapps:*',
+        'l:installedapps',
       ])
       .page('mainPage', async (context, page, configData) => {
         const allDevices = await context.api.devices.list();
@@ -57,6 +63,11 @@ export class STGenSmartApp extends SmartApp {
             .name('Github')
             .url('https://github.com/stgen/stgen-smartapp')
             .description('STGen SmartApp Github Repository');
+          section
+            .textSetting('installedAppId')
+            .name('Installed App ID')
+            .disabled(true)
+            .defaultValue(configData?.installedAppId ?? '');
         });
         page.section('CreateDevice', section => {
           section.name('Create a Virtual Device');
@@ -108,7 +119,7 @@ export class STGenSmartApp extends SmartApp {
       })
       .updated(async (context, updateData) => {
         await context.api.subscriptions.delete();
-        for (const cap of this.subscribedCapabilities) {
+        for (const cap of this.#subscribedCapabilities) {
           const sub = await context.api.subscriptions.subscribeToCapability(
             cap,
             '*',
@@ -135,17 +146,60 @@ export class STGenSmartApp extends SmartApp {
         }
       })
       .subscribedEventHandler(STGEN_EVENT_PREFIX, (context, event) => {
-        for (const callback of this.callbacks) {
+        if (!this.#isPrimaryInstalledApp(context)) {
+          return;
+        }
+        for (const callback of this.#callbacks) {
           callback(context, event);
         }
+      })
+      .installed((context, installData) => {
+        this.#lastInstalledAppIds = undefined;
+      })
+      .uninstalled((context, uninstallData) => {
+        this.#lastInstalledAppIds = undefined;
       });
   }
+
+  /**
+   * @override
+   */
+  appId(id: string): this {
+    super.appId(id);
+    this.#appId = id;
+    return this;
+  }
+
+  #getSortedInstalledAppIds = async (context: SmartAppContext): Promise<string[]> => {
+    if (
+      !this.#lastInstalledAppIds ||
+      new Date().getTime() - this.#lastInstalledAppIds.lastLookup.getTime() > INSTALLED_APP_IDS_TTL
+    ) {
+      const allInstalledApps = await context.api.installedApps.list();
+      this.#lastInstalledAppIds = {
+        lastLookup: new Date(),
+        ids: allInstalledApps
+          .filter(app => app.appId == this.#appId)
+          .sort((a, b) => new Date(a.createdDate).getTime() - new Date(b.createdDate).getTime())
+          .map(app => app.installedAppId),
+      };
+    }
+
+    return this.#lastInstalledAppIds.ids;
+  };
+
+  #isPrimaryInstalledApp = async (context: SmartAppContext): Promise<boolean> => {
+    return (
+      (await this.#getSortedInstalledAppIds(context))[0] ==
+      context.configStringValue('installedAppId')
+    );
+  };
 
   subscribe<TCapability extends UnknownCapability>(
     capability: TCapability,
     callback: (context: SmartAppContext, event: AppEvent.DeviceEvent) => void
   ): this {
-    this.callbacks.add((context, event) => {
+    this.#callbacks.add((context, event) => {
       if (
         event.capability == capability.id &&
         event.componentId == capability.component.id &&
@@ -154,7 +208,7 @@ export class STGenSmartApp extends SmartApp {
         callback(context, event);
       }
     });
-    this.subscribedCapabilities.add(capability.id);
+    this.#subscribedCapabilities.add(capability.id);
     return this;
   }
 
